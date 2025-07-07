@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>London NO2 Prediction Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #e0e7ff 0%, #c3dafe 100%);
+            color: #333;
+        }
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 300px;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            position: fixed;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #1e40af;
+            margin-bottom: 20px;
+        }
+        .sidebar form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .sidebar label {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: #4b5563;
+        }
+        .sidebar input[type="file"],
+        .sidebar select {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .sidebar button {
+            background-color: #1e40af;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .sidebar button:hover {
+            background-color: #1e3a8a;
+        }
+        .year-selection {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .year-button {
+            display: none; /* Hidden checkbox */
+        }
+        .year-button + label {
+            padding: 8px 12px;
+            background-color: #e5e7eb;
+            color: #4b5563;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 400;
+            transition: all 0.3s;
+        }
+        .year-button:checked + label {
+            background-color: #1e40af;
+            color: white;
+        }
+        .year-button + label:hover {
+            background-color: #d1d5db;
+        }
+        .sidebar h3 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-top: 20px;
+            color: #1e40af;
+        }
+        .sidebar pre {
+            background-color: #f3f4f6;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .main {
+            margin-left: 320px;
+            padding: 20px;
+            flex-grow: 1;
+        }
+        .main h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background-color: #e5e7eb;
+            color: #4b5563;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .tab:hover {
+            background-color: #d1d5db;
+        }
+        .tab.active {
+            background-color: #1e40af;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #d1d5db;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        th {
+            background-color: #f3f4f6;
+            font-weight: 500;
+        }
+        .error {
+            color: #dc2626;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+        .plot-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            height: 600px;
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: static;
+                height: auto;
+            }
+            .main {
+                margin-left: 0;
+            }
+            .plot-container {
+                height: 400px;
+            }
+            .year-selection {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Input Options</h2>
+            <form method="post" enctype="multipart/form-data">
+                <label for="sitedata_file">Upload Sitedata (.RData):</label>
+                <input type="file" id="sitedata_file" name="sitedata_file" accept=".RData">
+                <label for="griddata_file">Upload Griddata (.RData):</label>
+                <input type="file" id="griddata_file" name="griddata_file" accept=".RData">
+                <label for="model">Select Model:</label>
+                <select id="model" name="model">
+                    <option value="Random Forest">Random Forest</option>
+                    <option value="Gaussian Process (INLA-SPDE Proxy)">Gaussian Process (INLA-SPDE Proxy)</option>
+                </select>
+                <label>Select Years:</label>
+                <div class="year-selection">
+                    {% for year in years_available %}
+                    <input type="checkbox" id="year-{{ year }}" name="years" value="{{ year }}" class="year-button">
+                    <label for="year-{{ year }}">{{ year }}</label>
+                    {% endfor %}
+                </div>
+                <button type="submit" name="run">Run Model</button>
+            </form>
+            <h3>Debug Output</h3>
+            <pre>{{ debug_message }}</pre>
+        </div>
+        <div class="main">
+            <h1>London NO2 Prediction Dashboard</h1>
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('model-results')">Model Results</div>
+                <div class="tab" onclick="showTab('exploratory-plots')">Exploratory Plots</div>
+            </div>
+            <div id="model-results" class="tab-content active">
+                <h2>Model Results</h2>
+                {% if cv_summary %}
+                <h3>Cross-Validation Metrics</h3>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    {% for key, value in cv_summary.items() %}
+                    <tr><td>{{ key }}</td><td>{{ value | round(4) }}</td></tr>
+                    {% endfor %}
+                </table>
+                {% else %}
+                <p class="error">No model results available. Please upload data and run the model.</p>
+                {% endif %}
+                {% if pred_plot %}
+                <h3>Predicted NO2 Concentrations</h3>
+                <div id="pred-plot" class="plot-container"></div>
+                <script>
+                    try {
+                        Plotly.newPlot('pred-plot', JSON.parse('{{ pred_plot | safe }}'), {height: 600});
+                    } catch (e) {
+                        console.error('Error rendering prediction heatmap:', e);
+                        document.getElementById('pred-plot').innerHTML = '<p class="error">Failed to render prediction heatmap. Check console for details.</p>';
+                    }
+                </script>
+                {% else %}
+                <p class="error">Prediction heatmap not available. Check debug output for errors.</p>
+                {% endif %}
+                {% if uncertainty_plot %}
+                <h3>Prediction Uncertainty</h3>
+                <div id="uncertainty-plot" class="plot-container"></div>
+                <script>
+                    try {
+                        Plotly.newPlot('uncertainty-plot', JSON.parse('{{ uncertainty_plot | safe }}'), {height: 600});
+                    } catch (e) {
+                        console.error('Error rendering uncertainty heatmap:', e);
+                        document.getElementById('uncertainty-plot').innerHTML = '<p class="error">Failed to render uncertainty heatmap. Check console for details.</p>';
+                    }
+                </script>
+                {% else %}
+                <p class="error">Uncertainty heatmap not available. Check debug output for errors.</p>
+                {% endif %}
+            </div>
+            <div id="exploratory-plots" class="tab-content">
+                <h2>Exploratory Plots</h2>
+                {% if scatter_plot %}
+                <h3>NO2 vs NDVI Scatterplot</h3>
+                <div id="scatter-plot" class="plot-container"></div>
+                <script>
+                    try {
+                        Plotly.newPlot('scatter-plot', JSON.parse('{{ scatter_plot | safe }}'), {height: 400});
+                    } catch (e) {
+                        console.error('Error rendering scatter plot:', e);
+                        document.getElementById('scatter-plot').innerHTML = '<p class="error">Failed to render scatter plot. Check console for details.</p>';
+                    }
+                </script>
+                {% else %}
+                <p class="error">Scatterplot not available. Check debug output for errors.</p>
+                {% endif %}
+                {% if time_series_plot %}
+                <h3>Temporal NO2 Trends</h3>
+                <div id="time-series-plot" class="plot-container"></div>
+                <script>
+                    try {
+                        Plotly.newPlot('time-series-plot', JSON.parse('{{ time_series_plot | safe }}'), {height: 400});
+                    } catch (e) {
+                        console.error('Error rendering time series plot:', e);
+                        document.getElementById('time-series-plot').innerHTML = '<p class="error">Failed to render time series plot. Check console for details.</p>';
+                    }
+                </script>
+                {% else %}
+                <p class="error">Time series plot not available. Check debug output for errors.</p>
+                {% endif %}
+                {% if map_html %}
+                <h3>Monitoring Sites Map</h3>
+                {{ map_html | safe }}
+                {% else %}
+                <p class="error">Map not available. Check debug output for errors.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+    </script>
+</body>
+</html>
